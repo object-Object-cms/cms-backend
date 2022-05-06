@@ -88,7 +88,7 @@ def register():
             phash = sha(password + salt)
             cursor.execute("insert into userdata (accesslevel, username, salt, hash) values (?, ?, ?, ?) returning uid", (0, username, salt, phash))
             uid, = cursor.fetchone()
-            return loginUser(User(uid, name, 0))
+            return loginUser(User(uid, username, 0))
         except Exception as e:
             print(e)
             return simpleReject("User already exists")
