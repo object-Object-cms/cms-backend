@@ -194,7 +194,7 @@ def listBlobs():
         cursor.execute('select id, type from blobdata')
         output = []
         for _id, _type in cursor.fetchall():
-            output.push({"id": _id, "type": _type})
+            output.append({"id": _id, "type": _type})
         return simpleAccept({ "blobs": output })
 
 @app.route("/me")
