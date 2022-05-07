@@ -262,8 +262,8 @@ def articleList():
             })
     return simpleAccept({ "articles": articles })
 
-@app.route("/edit/article/<id>")
-def editArticle(id, methods=["POST"]):
+@app.route("/edit/article/<id>", methods=["POST"])
+def editArticle(id):
     if val := assertLoggedIn(): return val
     user = currentUser()
     if user.access_level < 50:
