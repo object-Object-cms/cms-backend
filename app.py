@@ -272,8 +272,8 @@ def listComments():
     with dbq() as cursor:
         cursor.execute('select u.username, c.content from comments c left join userdata u on u.uid = c.authorID')
         output = []
-        for entry, in cursor.fetchall():
-            output.append(entry)
+        for uname, content in cursor.fetchall():
+            output.append({"username": uname, "content": content})
     return simpleAccept({ "comments": output })
 
 
