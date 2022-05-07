@@ -271,12 +271,11 @@ def editArticle(id):
 
     try:
         description, content = itemgetter('description', 'content')(request.json)
-        int(id)
     except:
         return simpleReject("Invalid data supplied")
 
     with dbex() as cursor:
-        cursor.execute("update articles set content = ?, description = ?, authorID = ? where id = ?", (content, description, currentUser().uid, int(id)))
+        cursor.execute("update articles set content = ?, description = ?, authorID = ? where id = ?", (content, description, currentUser().uid, id))
     
     return simpleAccept({ })
 
