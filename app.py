@@ -268,6 +268,7 @@ def createComment():
     return simpleAccept({ "ok": True })
 
 @app.route("/comments")
+def listComments():
     with dbq() as cursor:
         cursor.execute('select u.username, c.content from c.comments left join userdata u on u.uid = c.authorID')
         output = []
@@ -282,4 +283,4 @@ def apply_caching(response):
     response.headers["Access-Control-Allow-Headers"] = "*"
     return response
 
-if __name__ == "__main__": app.run(debug=True, port=1234)
+if __name__ == "__main__": app.run(debug=True, port=1234, host="0.0.0.0")
