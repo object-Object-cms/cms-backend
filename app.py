@@ -270,7 +270,7 @@ def createComment():
 @app.route("/comments")
 def listComments():
     with dbq() as cursor:
-        cursor.execute('select u.username, c.content from c.comments left join userdata u on u.uid = c.authorID')
+        cursor.execute('select u.username, c.content from comments left join userdata u on u.uid = c.authorID')
         output = []
         for entry, in cursor.fetchall():
             output.append(entry)
