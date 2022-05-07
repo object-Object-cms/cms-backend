@@ -231,8 +231,8 @@ def createArticle():
             return simpleReject(f"Blob of type {resp[0]} cannot be loaded as the banner image")
     
     with dbex() as cursor:
-        cursor.execute("insert into articles (authorID, title, description, bannerimage, category, publishdate, content) values (?, ?, ?, ?, ?, ?, ?) returning id", (user.uid, title, description, bannerimage, category, int(time.time()), content))
-        aid, = cursor.fetchone()
+        aid = randsec()
+        cursor.execute("insert into articles (authorID, title, description, bannerimage, category, publishdate, content, id) values (?, ?, ?, ?, ?, ?, ?, ?)", (user.uid, title, description, bannerimage, category, int(time.time() * 1000), content, aid))
     return simpleAccept({ "ok": True, "id": aid })
 
 @app.route("/article/<id>")
