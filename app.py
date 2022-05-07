@@ -90,6 +90,13 @@ def init():
                 content text
             )
         """)
+        c.execute("""
+            create table if not exists specialpages (
+                name text primary key,
+                content text
+            )
+        """)
+
 
 
 def loginUser(user):
@@ -255,6 +262,24 @@ def articleList():
             })
     return simpleAccept({ "articles": articles })
 
+@app.route("/edit/article/<id>")
+def editArticle(id, methods=["POST"]):
+    if val := assertLoggedIn(): return val
+    user = currentUser()
+    if user.access_level < 50:
+        return simpleReject("Only moderator and above can edit articles on the server.")
+
+    try:
+        description, content = itemgetter('description', 'content')(request.json)
+        int(id)
+    except:
+        return simpleReject("Invalid data supplied")
+
+    with dbex() as cursor:
+        cursor.execute("update articles set content = ?, description = ?, authorID = ? where id = ?", (content, description, currentUser().uid, int(id)))
+    
+    return simpleAccept({ })
+
 
 @app.route("/create/comment", methods=["POST"])
 def createComment():
@@ -276,9 +301,50 @@ def listComments():
             output.append({"username": uname, "content": content})
     return simpleAccept({ "comments": output })
 
+@app.route("/create/core/<name>", methods=["POST"])
+def createCorePage(name):
+    if val := assertLoggedIn(): return val
+    user = currentUser()
+    if user.access_level < 100:
+        return simpleReject("Only administrators can create core pages on the server.")
+    if name not in [ "HOME" ]:
+        return simpleReject("Invalid core page name.")
+    try:
+        content, = itemgetter('content')(reqiest.json)
+    except:
+        return simpleReject("Invalid data supplied")
+    with dbex() as cursor:
+        cursor.execute("insert into specialpages ( content ) values (?)", (content, ))
+    return simpleAccept({ })
+
+@app.route("/core/<name>")
+def getCorePage(name):
+    with dbq() as cursor:
+        cursor.execute("select content from specialpages where name = ?", (name, ))
+        content = cursor.fetchone()
+        if not content:
+            return simpleReject("No core page with name " + name)
+        return simpleAccept({ "content": content[0] })
+
+@app.route("/edit/core/<name>", methods=["POST"])
+def editCorePage(name):
+    if val := assertLoggedIn(): return val
+    user = currentUser()
+    if user.access_level < 100:
+        return simpleReject("Only administrators can edit core pages on the server.")
+    try:
+        content, = itemgetter('content')(request.json)
+    except:
+        return simpleReject("Invalid data supplied")
+
+    with dbex() as cursor:
+        cursor.execute("update articles set content = ? where name = ?", (content, name))
+    
+    return simpleAccept({ })
+
 
 @app.after_request
-def apply_caching(response):
+def no_cors(response):
     response.headers["Access-Control-Allow-Origin"] = "*"
     response.headers["Access-Control-Allow-Headers"] = "*"
     return response
