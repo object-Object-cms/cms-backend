@@ -83,6 +83,13 @@ def init():
                 content text
             )
         """)
+        c.execute("""
+            create table if not exists comments (
+                id integer primary key,
+                authorID integer,
+                content text
+            )
+        """)
 
 
 def loginUser(user):
@@ -235,7 +242,7 @@ def articleList():
     # Any user can get the list of articles - no login assertion required
     articles = []
     with dbq() as cursor:
-        cursor.execute("select a.id, f.username, a.title, a.description, a.bannerimage, a.category, a.publishdate from articles a left join userdata f where f.uid = a.authorID")
+        cursor.execute("select a.id, f.username, a.title, a.description, a.bannerimage, a.category, a.publishdate from articles a left join userdata f on f.uid = a.authorID")
         for id, uname, title, description, bannerImage, category, publishDate in cursor.fetchall():
             articles.append({
                 "id": id,
@@ -247,6 +254,27 @@ def articleList():
                 "author": uname
             })
     return simpleAccept({ "articles": articles })
+
+
+@app.route("/create/comment", methods=["POST"])
+def createComment():
+    if val := assertLoggedIn(): return val
+    try:
+        content = itemgetter('content')(request.json)
+    except:
+        return simpleReject("Invalid data supplied")
+    with dbex() as cursor:
+        cursor.execute("insert into comments (authorID, content) values (?, ?)", (currentUser().uid, content))
+    return simpleAccept({ "ok": True })
+
+@app.route("/comments")
+    with dbq() as cursor:
+        cursor.execute('select u.username, c.content from c.comments left join userdata u on u.uid = c.authorID')
+        output = []
+        for entry, in cursor.fetchall():
+            output.append(entry)
+    return simpleAccept({ "comments": output })
+
 
 @app.after_request
 def apply_caching(response):
