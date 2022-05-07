@@ -226,7 +226,7 @@ def createArticle():
         cursor.execute('select type from blobdata where id = ?', (bannerimage, ))
         resp = cursor.fetchone()
         if not resp:
-            return simpleReject("No blob with id " + id)
+            return simpleReject("No blob with id " + bannerimage)
         if not resp[0].startswith("image/"):
             return simpleReject(f"Blob of type {resp[0]} cannot be loaded as the banner image")
     
