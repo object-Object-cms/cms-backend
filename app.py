@@ -3,6 +3,7 @@ from sqlite3 import connect as sqlConnect
 from hashlib import sha256
 from string import ascii_letters, digits
 from random import choice
+import time
 from operator import itemgetter
 from dataclasses import dataclass
 
@@ -16,6 +17,17 @@ class User:
     uid: int
     name: str
     access_level: int
+
+@dataclass
+class Article:
+    id: str
+    title: str
+    description: str
+    bannerImage: str
+    category: str
+    publishDate: int
+
+    content: str
 
 class CursorClosable:
     def __init__(self, connection, doCommit):
@@ -59,6 +71,18 @@ def init():
                 content blob
             )
         """)
+        c.execute("""
+            create table if not exists articles (
+                id text primary key,
+                authorID integer,
+                title text,
+                description text,
+                bannerimage text,
+                category text,
+                publishdate integer,
+                content text
+            )
+        """)
 
 
 def loginUser(user):
@@ -86,7 +110,8 @@ def register():
         try:
             salt = randsec()
             phash = sha(password + salt)
-            cursor.execute("insert into userdata (accesslevel, username, salt, hash) values (?, ?, ?, ?) returning uid", (0, username, salt, phash))
+            cursor.execute("insert into userdata (accesslevel, username, salt, hash) values (?, ?, ?, ?)", (0, username, salt, phash))
+            cursor.execute("select uid from userdata where username = ?", (username, ))
             uid, = cursor.fetchone()
             return loginUser(User(uid, name, 0))
         except Exception as e:
@@ -125,24 +150,15 @@ def simpleReject(reason):
 def currentUser():
     return store[request.headers.get("Authorization")]
 
-@app.route("/uploadFile", methods=["POST", "GET"])
+@app.route("/create/blob", methods=["POST"])
 def uploadImage():
-    if request.method == "GET":
-        # Test code:
-        return """
-<!Doctype html>
-<html>
-    <head>
-        <title>Test</title>
-    </head>
-    <body>
-        <form action="/uploadFile" method="POST" enctype="multipart/form-data">
-            <input type="file" name="file" accept="image/*">
-            <input type="submit" value="Yes">
-        </form>
-    </body>
-</html>
-        """
+    #needs multipart data with <input type="file" name="file">
+    #Only moderator and above can upload files
+    if val := assertLoggedIn(): return val
+    user = currentUser()
+    if user.access_level < 50:
+        return simpleReject("Only moderator and above can upload files to the server.")    
+
     content = request.files["file"].read()
     fileType = request.files["file"].content_type
     with dbex() as cursor:
@@ -165,11 +181,72 @@ def getImage(id):
         response.headers["Content-Type"] = content_type
         return response
 
+@app.route("/list/blobs")
+def listBlobs():
+    with dbq() as cursor:
+        cursor.execute('select id, type from blobdata')
+        output = []
+        for _id, _type in cursor.fetchall():
+            output.push({"id": _id, "type": _type})
+        return simpleAccept({ "blobs": output })
+
 @app.route("/me")
 def userInfo():
     if val := assertLoggedIn(): return val
     user = currentUser()
     return simpleAccept({ "username": user.name, "accessLevel": user.access_level })
+
+@app.route("/create/article", methods=["POST"])
+def createArticle():
+    if val := assertLoggedIn(): return val
+    user = currentUser()
+    if user.access_level < 50:
+        return simpleReject("Only moderator and above can create articles on the server.")
+
+    try:
+        title, description, bannerimage, category, content = itemgetter('title', 'description', 'bannerimage', 'category', 'content')(request.json)
+    except:
+        return simpleReject("Invalid data supplied")
+    
+    with dbq() as cursor:
+        cursor.execute('select type from blobdata where id = ?', (bannerimage, ))
+        resp = cursor.fetchone()
+        if not resp:
+            return simpleReject("No blob with id " + id)
+        if not resp[0].startswith("image/"):
+            return simpleReject(f"Blob of type {resp[0]} cannot be loaded as the banner image")
+    
+    with dbex() as cursor:
+        cursor.execute("insert into articles (authorID, title, description, bannerimage, category, publishdate, content) values (?, ?, ?, ?, ?, ?, ?) returning id", (user.uid, title, description, bannerimage, category, int(time.time()), content))
+        aid, = cursor.fetchone()
+    return simpleAccept({ "ok": True, "id": aid })
+
+@app.route("/article/<id>")
+def getArticle(id):
+    with dbq() as cursor:
+        cursor.execute('select content from articles where id = ?', (id, ))
+        content = cursor.fetchone()
+        if not content:
+            return simpleReject("No such article")
+        return simpleAccept({ "content": content[0] })
+
+@app.route("/list/articles")
+def articleList():
+    # Any user can get the list of articles - no login assertion required
+    articles = []
+    with dbq() as cursor:
+        cursor.execute("select a.id, f.username, a.title, a.description, a.bannerimage, a.category, a.publishdate from articles a left join userdata f where f.uid = a.authorID")
+        for id, uname, title, description, bannerImage, category, publishDate in cursor.fetchall():
+            articles.append({
+                "id": id,
+                "title": title,
+                "description": description,
+                "bannerImage": bannerImage,
+                "category": category,
+                "publishDate": publishDate,
+                "author": uname
+            })
+    return simpleAccept({ "articles": articles })
 
 @app.after_request
 def apply_caching(response):
