@@ -333,12 +333,12 @@ def editCorePage(name):
     if user.access_level < 100:
         return simpleReject("Only administrators can edit core pages on the server.")
     try:
-        content, = itemgetter('content')(request.json)
+        content = itemgetter('content')(request.json)
     except:
         return simpleReject("Invalid data supplied")
 
     with dbex() as cursor:
-        cursor.execute("update articles set content = ? where name = ?", (content, name))
+        cursor.execute("update specialpages set content = ? where name = ?", (content, name))
     
     return simpleAccept({ })
 
