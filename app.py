@@ -7,7 +7,7 @@ import time
 from operator import itemgetter
 from dataclasses import dataclass
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='/')
 
 sha = lambda e: sha256(e.encode('utf-8')).hexdigest()
 randsec = lambda: ''.join([choice(ascii_letters + ascii_letters.upper() + digits) for x in range(32)])
@@ -112,10 +112,7 @@ def assertLoggedIn():
 
 @app.route('/')
 def index():
-    print("INDEX!")
-    if val := assertLoggedIn(): return val
-    return jsonify({"Info": "Hello!"})
-
+    return app.send_static_file('index.html')
 
 @app.route("/register", methods=["POST"])
 def register():
