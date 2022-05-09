@@ -279,6 +279,17 @@ def editArticle(id):
     
     return simpleAccept({ })
 
+@app.route("/delete/article/<id>", methods=["POST"])
+def deleteArticle(id):
+    if val := assertLoggedIn(): return val
+    user = currentUser()
+    if user.access_level < 50:
+        return simpleReject("Only moderator and above can delete articles on the server.")
+
+    with dbex() as cursor:
+        cursor.execute("delete from articles where id = ?", (id,))
+
+    return simpleAccept({ })
 
 @app.route("/create/comment", methods=["POST"])
 def createComment():
