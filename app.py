@@ -317,7 +317,7 @@ def createCorePage(name):
     user = currentUser()
     if user.access_level < 100:
         return simpleReject("Only administrators can create core pages on the server.")
-    if name not in [ "HOME" ]:
+    if name not in [ "HOME", "MENUBAR" ]:
         return simpleReject("Invalid core page name.")
     try:
         content = itemgetter('content')(request.json)
