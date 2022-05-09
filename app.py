@@ -321,8 +321,7 @@ def createCorePage(name):
         return simpleReject("Invalid core page name.")
     try:
         content = itemgetter('content')(request.json)
-    except e:
-        print(e)
+    except:
         return simpleReject("Invalid data supplied")
     with dbex() as cursor:
         cursor.execute("insert into specialpages (name, content) values (?, ?)", (name, content))
