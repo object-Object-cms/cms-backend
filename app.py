@@ -367,6 +367,73 @@ def editCorePage(name):
 
     return simpleAccept({ })
 
+@app.route("/list/users")
+def listUsers():
+    if val := assertLoggedIn(): return val
+    user = currentUser()
+    if user.access_level < 100:
+        return simpleReject("Only administrators can list users on the server.")
+
+    users = []
+    with dbq() as cursor:
+        cursor.execute("select uid, accesslevel, username from userdata")
+        for uid, accesslevel, username in cursor.fetchall():
+            users.append({
+                "id": uid,
+                "accessLevel": accesslevel,
+                "username": username
+            })
+    return simpleAccept({ "users": users })
+
+@app.route("/create/user", methods=["POST"])
+def createUser():
+    if val := assertLoggedIn(): return val
+    user = currentUser()
+    if user.access_level < 100:
+        return simpleReject("Only administrators can create users on the server.")
+
+    try:
+        username, password, accesslevel = itemgetter('username', 'password', 'accessLevel')(request.json)
+    except:
+        return simpleReject("Invalid data supplied")
+
+    with dbex() as cursor:
+        try:
+            salt = randsec()
+            phash = sha(password + salt)
+            cursor.execute("insert into userdata (accesslevel, username, salt, hash) values (?, ?, ?, ?)", (accesslevel, username, salt, phash))
+            cursor.execute("select uid from userdata where username = ?", (username, ))
+            uid, = cursor.fetchone()
+            return simpleAccept({ "id": uid })
+        except Exception as e:
+            print(e)
+            return simpleReject("User already exists")
+
+@app.route("/edit/user/<uid>", methods=["POST"])
+def editUser(uid):
+    if val := assertLoggedIn(): return val
+    user = currentUser()
+    if user.access_level < 100:
+        return simpleReject("Only administrators can edit users on the server.")
+
+    try:
+        username, accesslevel = itemgetter('username', 'accessLevel')(request.json)
+    except:
+        return simpleReject("Invalid data supplied")
+
+    password = request.json['password'] if 'password' in request.json else None
+
+    with dbex() as cursor:
+        try:
+            cursor.execute("update userdata set accesslevel=?, username=? where uid=?", (accesslevel, username, uid))
+            if password != None:
+                salt = randsec()
+                phash = sha(password + salt)
+                cursor.execute("update userdata set salt=?, hash=? where uid=?", (salt, phash, uid))
+            return simpleAccept({ })
+        except Exception as e:
+            print(e)
+            return simpleReject("Username already taken")
 
 @app.after_request
 def no_cors(response):
