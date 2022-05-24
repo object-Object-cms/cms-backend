@@ -42,7 +42,7 @@ class CursorClosable:
 store = {}
 
 def db():
-    if not hasattr(g, 'db'): 
+    if not hasattr(g, 'db'):
         g.db = sqlConnect("data.db")
     return g.db
 
@@ -143,6 +143,24 @@ def login():
         else:
             return simpleReject("Password incorrect")
 
+@app.route("/change_password", methods=["POST"])
+def change_password():
+    if val := assertLoggedIn(): return val
+    user = currentUser()
+
+    try:
+        new_password = itemgetter('password')(request.json)
+    except:
+        simpleReject("Invalid data supplied")
+
+    salt = randsec()
+    phash = sha(new_password + salt)
+
+    with dbex() as cursor:
+        cursor.execute("update userdata set salt=?, hash=? where uid=?", (salt, phash, user.uid))
+
+    return simpleAccept({})
+
 def simpleAccept(reason={}):
     res = make_response(jsonify({
         "ok": True,
@@ -168,7 +186,7 @@ def uploadImage():
     if val := assertLoggedIn(): return val
     user = currentUser()
     if user.access_level < 50:
-        return simpleReject("Only moderator and above can upload files to the server.")    
+        return simpleReject("Only moderator and above can upload files to the server.")
 
     content = request.files["file"].read()
     fileType = request.files["file"].content_type
@@ -218,7 +236,7 @@ def createArticle():
         title, description, bannerimage, category, content = itemgetter('title', 'description', 'bannerimage', 'category', 'content')(request.json)
     except:
         return simpleReject("Invalid data supplied")
-    
+
     with dbq() as cursor:
         cursor.execute('select type from blobdata where id = ?', (bannerimage, ))
         resp = cursor.fetchone()
@@ -226,7 +244,7 @@ def createArticle():
             return simpleReject("No blob with id " + bannerimage)
         if not resp[0].startswith("image/"):
             return simpleReject(f"Blob of type {resp[0]} cannot be loaded as the banner image")
-    
+
     with dbex() as cursor:
         aid = randsec()
         cursor.execute("insert into articles (authorID, title, description, bannerimage, category, publishdate, content, id) values (?, ?, ?, ?, ?, ?, ?, ?)", (user.uid, title, description, bannerimage, category, int(time.time() * 1000), content, aid))
@@ -273,7 +291,7 @@ def editArticle(id):
 
     with dbex() as cursor:
         cursor.execute("update articles set content = ?, description = ?, authorID = ? where id = ?", (content, description, currentUser().uid, id))
-    
+
     return simpleAccept({ })
 
 @app.route("/delete/article/<id>", methods=["POST"])
@@ -346,7 +364,7 @@ def editCorePage(name):
 
     with dbex() as cursor:
         cursor.execute("update specialpages set content = ? where name = ?", (content, name))
-    
+
     return simpleAccept({ })
 
 
