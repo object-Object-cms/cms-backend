@@ -435,6 +435,18 @@ def editUser(uid):
             print(e)
             return simpleReject("Username already taken")
 
+@app.route("/delete/user/<uid>", methods=["POST"])
+def deleteUser(uid):
+    if val := assertLoggedIn(): return val
+    user = currentUser()
+    if user.access_level < 100:
+        return simpleReject("Only administrators can delete users on the server.")
+
+    with dbex() as cursor:
+        cursor.execute("delete from userdata where uid=?", (uid,))
+
+    return simpleAccept({ })
+
 @app.after_request
 def no_cors(response):
     response.headers["Access-Control-Allow-Origin"] = "*"
