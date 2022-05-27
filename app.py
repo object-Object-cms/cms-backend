@@ -409,7 +409,7 @@ def createUser():
             print(e)
             return simpleReject("User already exists")
 
-@app.route("/edit/user/<uid>", methods=["POST"])
+@app.route("/edit/user/<int:uid>", methods=["POST"])
 def editUser(uid):
     if val := assertLoggedIn(): return val
     user = currentUser()
@@ -430,12 +430,18 @@ def editUser(uid):
                 salt = randsec()
                 phash = sha(password + salt)
                 cursor.execute("update userdata set salt=?, hash=? where uid=?", (salt, phash, uid))
+
+            for s in store.values():
+                if s.uid == uid:
+                    s.name = username
+                    s.access_level = accesslevel
+
             return simpleAccept({ })
         except Exception as e:
             print(e)
             return simpleReject("Username already taken")
 
-@app.route("/delete/user/<uid>", methods=["POST"])
+@app.route("/delete/user/<int:uid>", methods=["POST"])
 def deleteUser(uid):
     if val := assertLoggedIn(): return val
     user = currentUser()
@@ -444,6 +450,12 @@ def deleteUser(uid):
 
     with dbex() as cursor:
         cursor.execute("delete from userdata where uid=?", (uid,))
+
+    sessions_to_invalidate = []
+    for s in store.items():
+        if s[1].uid == uid:
+            sessions_to_invalidate.append(s[0])
+    [store.pop(s) for s in sessions_to_invalidate]
 
     return simpleAccept({ })
 
