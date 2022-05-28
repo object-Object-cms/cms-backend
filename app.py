@@ -68,6 +68,7 @@ def init():
             create table if not exists blobdata (
                 id integer primary key autoincrement,
                 type text,
+                showInGallery integer,
                 content blob
             )
         """)
@@ -190,8 +191,9 @@ def uploadImage():
 
     content = request.files["file"].read()
     fileType = request.files["file"].content_type
+    showInGallery = request.form.get("showInGallery", "false") == "true"
     with dbex() as cursor:
-        cursor.execute("insert into blobdata (content, type) values (?, ?) returning id", (content, fileType))
+        cursor.execute("insert into blobdata (content, type, showInGallery) values (?, ?, ?) returning id", (content, fileType, showInGallery))
         fid, = cursor.fetchone()
         return jsonify({
             "ok": True,
@@ -213,10 +215,19 @@ def getImage(id):
 @app.route("/list/blobs")
 def listBlobs():
     with dbq() as cursor:
-        cursor.execute('select id, type from blobdata')
+        cursor.execute('select id, type, showInGallery from blobdata')
         output = []
-        for _id, _type in cursor.fetchall():
-            output.append({"id": _id, "type": _type})
+        for _id, _type, show_in_gallery in cursor.fetchall():
+            output.append({"id": _id, "type": _type, "showInGallery": show_in_gallery})
+        return simpleAccept({ "blobs": output })
+
+@app.route("/gallery")
+def getGallery():
+    with dbq() as cursor:
+        cursor.execute('select id, type, showInGallery from blobdata where showInGallery=TRUE')
+        output = []
+        for _id, _type, show_in_gallery in cursor.fetchall():
+            output.append({"id": _id, "type": _type, "showInGallery": show_in_gallery})
         return simpleAccept({ "blobs": output })
 
 @app.route("/me")
