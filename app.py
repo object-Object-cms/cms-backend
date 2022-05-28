@@ -317,6 +317,19 @@ def createComment():
         cursor.execute("insert into comments (authorID, content) values (?, ?)", (currentUser().uid, content))
     return simpleAccept({ "ok": True })
 
+@app.route("/delete/comment/<cid>", methods=["POST"])
+def deleteComment(cid):
+    if val := assertLoggedIn(): return val
+    user = currentUser()
+
+    with dbex() as cursor:
+        if user.access_level < 50:
+            cursor.execute("delete from comments where id = ? and authorID = ?", (cid, user.uid))
+        else:
+            cursor.execute("delete from comments where id = ?", (cid,))
+
+    return simpleAccept({ })
+
 @app.route("/comments")
 def listComments():
     with dbq() as cursor:
