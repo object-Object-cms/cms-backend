@@ -333,10 +333,10 @@ def deleteComment(cid):
 @app.route("/comments")
 def listComments():
     with dbq() as cursor:
-        cursor.execute('select u.uid, u.username, c.content from comments c left join userdata u on u.uid = c.authorID')
+        cursor.execute('select u.uid, u.username, c.id, c.content from comments c left join userdata u on u.uid = c.authorID')
         output = []
-        for uid, uname, content in cursor.fetchall():
-            output.append({"author": {"id": uid, "username": uname}, "content": content})
+        for uid, uname, cid, content in cursor.fetchall():
+            output.append({"id": cid, "author": {"id": uid, "username": uname}, "content": content})
     return simpleAccept({ "comments": output })
 
 @app.route("/create/core/<name>", methods=["POST"])
