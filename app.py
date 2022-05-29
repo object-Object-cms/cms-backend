@@ -200,6 +200,23 @@ def uploadImage():
             "id": fid
         })
 
+@app.route("/edit/blob/<bid>", methods=["POST"])
+def editBlob(bid):
+    if val := assertLoggedIn(): return val
+    user = currentUser()
+    if user.access_level < 50:
+        return simpleReject("Only moderator and above can edit files on the server.")
+
+    try:
+        show_in_gallery = itemgetter('showInGallery')(request.json)
+    except:
+        return simpleReject("Invalid data supplied")
+
+    with dbex() as cursor:
+        cursor.execute("update blobdata set showInGallery=? where id = ?", (show_in_gallery, bid))
+
+    return simpleAccept({ })
+
 @app.route("/blob/<id>")
 def getImage(id):
     with dbq() as cursor:
@@ -356,7 +373,7 @@ def createCorePage(name):
     user = currentUser()
     if user.access_level < 100:
         return simpleReject("Only administrators can create core pages on the server.")
-    if name not in [ "HOME", "MENUBAR" ]:
+    if name not in [ "HOME", "MENUBAR", "GLOBAL_THEME" ]:
         return simpleReject("Invalid core page name.")
     try:
         content = itemgetter('content')(request.json)
